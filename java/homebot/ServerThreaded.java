@@ -12,35 +12,24 @@ import java.util.concurrent.BlockingQueue;
  *
  * @author www.codejava.net
  */
-public class ReverseServerThreaded {
-	//static BlockingQueue <String> queue = new ArrayBlockingQueue(100);
+public class ServerThreaded {
+	static BlockingQueue <String> queue = new ArrayBlockingQueue(100);
      
-    public static void main(String[] args) { 
-		String text="";
-		BlockingQueue queue;       
-        queue=serverInit();
-        
-        while (true){
-			text=serverLoopOnce(queue);
-		}		
-    }
-    public static BlockingQueue serverInit(){
-	  BlockingQueue <String> queue = new ArrayBlockingQueue(100);	
+    
+    public ServerThreaded(){
+	  //BlockingQueue <String> queue = new ArrayBlockingQueue(100);	
 	  try (ServerSocket serverSocket = new ServerSocket(6868)) {     //initiate socket
          System.out.println("Server is listening on port " + "6868");
          Socket socket = serverSocket.accept();
          System.out.println("New client connected");                
-         new ServerThread(socket,queue).start();
-         String text;
-         int counterint=0; 
+         new ServerThread(socket,queue).start();         
        } catch (IOException ex) {
             System.out.println("Server exceptionary: " + ex.getMessage());
             ex.printStackTrace();
-         }
-       return queue;    
+       }           
 	}
 	
-	public static String serverLoopOnce(BlockingQueue queue){
+	public static String serverLoopOnce(){
 	  String text="";	
 	  try {text=queue.take();}//(10,TimeUnit.MILLISECONDS);}
       catch (InterruptedException ex){
@@ -59,6 +48,15 @@ public class ReverseServerThreaded {
       catch(InterruptedException ex) {
         Thread.currentThread().interrupt();
       }
+    }
+    public static void main(String[] args) { 
+		String text="";
+		//BlockingQueue queue;       
+        //ServerThreadeded();
+        ServerThreaded a = new ServerThreaded();
+        while (true){
+			text=a.serverLoopOnce();
+		}		
     }
 }
 

@@ -1,3 +1,4 @@
+
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.BlockingQueue; 
@@ -17,13 +18,7 @@ public class ServerThread extends Thread {
         //this.internalText=string;
         //this.internalText=globalText;        
     }
-    public static String getServerText(){
-		return internalText;
-	}	
-    public static void resetServerText(){
-		internalText="";
-		return;
-	}  
+    
  
  
     public void run() {
