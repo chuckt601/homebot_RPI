@@ -16,8 +16,7 @@ public class ServerThreaded {
 	static BlockingQueue <String> queue = new ArrayBlockingQueue(100);
      
     
-    public ServerThreaded(){
-	  //BlockingQueue <String> queue = new ArrayBlockingQueue(100);	
+    public ServerThreaded(){	  	
 	  try (ServerSocket serverSocket = new ServerSocket(6868)) {     //initiate socket
          System.out.println("Server is listening on port " + "6868");
          Socket socket = serverSocket.accept();
@@ -28,15 +27,16 @@ public class ServerThreaded {
             ex.printStackTrace();
        }           
 	}
+	//======================================================================================================
 	
 	public static String serverLoopOnce(){
 	  String text="";	
-	  try {text=queue.take();}//(10,TimeUnit.MILLISECONDS);}
+	  try {text=queue.poll(1L,TimeUnit.MICROSECONDS);}
       catch (InterruptedException ex){
 		System.out.println("taking from queue error" + ex.getMessage());
         ex.printStackTrace();
       }
-      if (text.length()>0){ 
+      if (text!=null){ 
        System.out.println(text);//msg.getMsg()); 
 	  }
 	  return text;
@@ -49,6 +49,7 @@ public class ServerThreaded {
         Thread.currentThread().interrupt();
       }
     }
+    //==========================================================================
     public static void main(String[] args) { 
 		String text="";
 		//BlockingQueue queue;       

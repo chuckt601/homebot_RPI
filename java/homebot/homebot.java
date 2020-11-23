@@ -1,4 +1,4 @@
-package homebot;
+//package homebot;
 import java.lang.String;
 import java.nio.charset.StandardCharsets;
 import com.fazecast.jSerialComm.*;
@@ -7,20 +7,48 @@ import java.io.*;
 public class homebot {
 	
   public static SerialPort comPort = SerialPort.getCommPort("dev/ttyACM0");
+  public static ServerThreaded joyStick = new ServerThreaded();
+  public static inputAnalyze ana= new inputAnalyze();
   static StringScan findYaw = new StringScan("yaw");
   static StringScan findmagYaw = new StringScan("magYaw");
   static StringScan findcalibdata = new StringScan("calibration_data");
+  //
+  
   //static int matchStringCounter=0;
-  public static void main(String[] args) {	  
-	  boolean terminate=false;	  
-      setup();
-      long endTimeMillis=System.currentTimeMillis(); 
-      while(!terminate) { 
+  //=======================================================================================
+  public static void main(String[] args) {	    
+      homebot a=new homebot();       
+      a.loop();      	  
+  } 
+  //=======================================================================================   
+  public homebot() {
+	  //System.out.println("Hello keyboard 0"); 
+	  //endTimeMillis=System.currentTimeMillis();
+	  //boolean terminate=false;
+	  //ServerThreaded joyStick = new ServerThreaded();	
+	           
+	   try{	       
+           OutputStream fos = new FileOutputStream("test.txt",false);           
+           fos.close();           
+	       comPort.openPort(); 
+	       comPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0);
+           }  
+         catch (IOException e) {
+           System.out.print("Exception");
+           }
+  }
+  //=======================================================================================
+  public static void loop() {
+	long endTimeMillis=System.currentTimeMillis();
+	boolean terminate=false;  
+    while(!terminate) { 
 		long startTimeMillis=System.currentTimeMillis(); 
 		//System.out.println(endTimeMillis-startTimeMillis);
 		while (startTimeMillis<endTimeMillis+100) startTimeMillis=System.currentTimeMillis();   
 		//System.out.println(System.currentTimeMillis());  		
-		String inputString=keyboard();		
+		String inputString=keyboard();
+		String inputJoyStick= joyStick.serverLoopOnce();
+		inputString=ana.inputAnalyze(inputString,inputJoyStick);		
 		if (inputString.length()>0) {          
           switch (inputString.charAt(0)) {
 			case 'q':  
@@ -42,26 +70,11 @@ public class homebot {
 	   	findmagYaw.scanSerial(inString);
 	   	findcalibdata.scanSerial(inString);
         endTimeMillis=System.currentTimeMillis();
-	  }		  
-  } 
-  //=======================================================================================   
-  public static void setup() {
-	  //System.out.println("Hello keyboard 0");         
-	   try{	       
-           OutputStream fos = new FileOutputStream("test.txt",false);           
-           fos.close();           
-	       comPort.openPort(); 
-	       comPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0);
-           }  
-         catch (IOException e) {
-           System.out.print("Exception");
-           }
-  }
-  //=======================================================================================
-  public static void loop() {
-  
+	  }
   
   }
+ 
+  
   //=======================================================================================
   public static void shutDown() {
 	comPort.closePort();   
