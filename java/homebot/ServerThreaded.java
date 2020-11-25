@@ -37,7 +37,7 @@ public class ServerThreaded {
         ex.printStackTrace();
       }
       if (text!=null){ 
-       System.out.println(text);//msg.getMsg()); 
+       //System.out.println(text);//msg.getMsg()); 
 	  }
 	  return text;
     }

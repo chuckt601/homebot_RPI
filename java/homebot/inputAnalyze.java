@@ -5,15 +5,26 @@ public class inputAnalyze
     boolean reverseStateOn=false;  
     boolean leftStateOn=false;
     boolean rightStateOn=false;
- public inputAnalyze(){}   
+    float joyStickTurnAnalog=0;
+    float joyStickSpeed=0;
+ public inputAnalyze(){} 
+ //=======================================================================================  
+ public float getJoyStickYAnalog(){
+	 return joyStickSpeed;
+ }
  //=======================================================================================
-  public String inputAnalyze(String inputString,String inputJoyStick){
+ public float getJoyStickXAnalog(){
+	 return joyStickTurnAnalog;
+ }
+ //=======================================================================================
+ public String inputAnalyze(String inputString,String inputJoyStick){
     String outputString=inputString;
     if (inputJoyStick!=null){
       int len=inputJoyStick.length();
-      if (len>54){
-		String shortString=inputJoyStick.substring(54,len);
-        //System.out.println(shortString);
+      int locComma=inputJoyStick.indexOf(",",0)+2;
+      if (len>locComma){
+		String shortString=inputJoyStick.substring(locComma,len);
+        
         switch(shortString)
         {		
 		  case "Button 3 changed to On":		    
@@ -60,11 +71,23 @@ public class inputAnalyze
 		  case "Button 1 changed to Off":		   
 		    if (rightStateOn){
 				rightStateOn=false;
-			    outputString="s$";
-			}  	   
+			    outputString="d$";
+			} 		  	 	   
 		  default:
-		    //outputString=inputString;
-		  ;  
+		    if (inputJoyStick.contains("Y Rotation changed to")){
+			  String magnitude=inputJoyStick.substring(locComma+22,len);
+			  System.out.println(magnitude);
+			  joyStickSpeed=Float.parseFloat(magnitude);
+			  //System.out.println(joyStickSpeed);
+			  outputString="JY"+ magnitude + "$";
+			} 
+			if (inputJoyStick.contains("X Rotation changed to")){
+			  String turnString=inputJoyStick.substring(locComma+22,len);
+			  System.out.println(turnString);
+			  joyStickTurnAnalog=Float.parseFloat(turnString);
+			  //System.out.println(joyStickTurnAnalog);
+			  outputString="JX"+ turnString + "$";
+			} 
 	    }
 	  }
 	}      	

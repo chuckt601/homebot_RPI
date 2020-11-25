@@ -11,7 +11,7 @@ public class homebot {
   public static inputAnalyze ana= new inputAnalyze();
   static StringScan findYaw = new StringScan("yaw");
   static StringScan findmagYaw = new StringScan("magYaw");
-  static StringScan findcalibdata = new StringScan("calibration_data");
+  static StringScan findcalibdata = new StringScan("calibration_data");  
   //
   
   //static int matchStringCounter=0;
@@ -44,11 +44,12 @@ public class homebot {
     while(!terminate) { 
 		long startTimeMillis=System.currentTimeMillis(); 
 		//System.out.println(endTimeMillis-startTimeMillis);
-		while (startTimeMillis<endTimeMillis+100) startTimeMillis=System.currentTimeMillis();   
+		while (startTimeMillis<endTimeMillis+25) startTimeMillis=System.currentTimeMillis();   
 		//System.out.println(System.currentTimeMillis());  		
-		String inputString=keyboard();
-		String inputJoyStick= joyStick.serverLoopOnce();
-		inputString=ana.inputAnalyze(inputString,inputJoyStick);		
+		String inputString=keyboard();			
+		String inputJoyStick= joyStick.serverLoopOnce();		
+		inputString=ana.inputAnalyze(inputString,inputJoyStick);
+					
 		if (inputString.length()>0) {          
           switch (inputString.charAt(0)) {
 			case 'q':  

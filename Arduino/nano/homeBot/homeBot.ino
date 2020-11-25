@@ -28,6 +28,7 @@ int deltaMotor=0;
 
 float yaw;
 float initialYaw;
+float headingTarget=0.0;
 float mx,my,mz; //units = Deg/second
 float gx,gy,gz; //degrees/sec
 float magYaw;
@@ -312,23 +313,37 @@ void calibrate(){
   }
 }
 //===========================================================================================
-int motDeltaFromYaw(float yaw, float HeadingTarget) {
-  float yawSpeedTargetMagnitude=10; 
+int motDeltaFromYaw(float yaw, float HeadingTarget, float yawSpeedTargetMagnitude) {
+  //float yawSpeedTargetMagnitude=4; 
   float yawSpeedTarget=0;
   float yawDeadBand=3;
-  float yawSPGain=5; 
+  float yawSPGain=50; 
   float yawErr=HeadingTarget-yaw;
-  static float yawOld=0;
+  static float yawOld=0;             //only initialize first time
   float yawDelta=yaw-yawOld;
+  yawOld=yaw;
   if (yawErr>180) yawErr=yawErr-360;
   if (yawErr<-180) yawErr=yawErr+360;
-  if (abs(yawErr)<yawDeadBand) return 0;
-  if (yawErr<yawDeadBand) yawSpeedTarget=-yawSpeedTargetMagnitude;
+  if (yawErr>90) yawErr=90;
+  if (yawErr<-90) yawErr=-90;
+  if(abs(motorSpeed[0]+motorSpeed[1])>100 && (motorSpeed[1]*motorSpeed[0])>=0){  //Moving straight= low gain and no deadband
+  //if(abs(motorSpeed[0])<1 && abs(motorSpeed[1])<1){
+    yawSPGain=15;
+    yawSpeedTargetMagnitude=2;
+    yawDeadBand=1;
+  }
+  else{
+    if(abs(motorSpeed[0]+motorSpeed[1])>100) yawSPGain-=15;  //dynamic lower gain even if turning
+    if (abs(yawErr)<yawDeadBand) return 0;
+  }
+  if (yawErr<-yawDeadBand) yawSpeedTarget=-yawSpeedTargetMagnitude;
   if (yawErr>yawDeadBand) yawSpeedTarget=yawSpeedTargetMagnitude;
   float yawDeltaErr=yawSpeedTarget-yawDelta;
-  if (yawDeltaErr>180) yawDeltaErr=yawDeltaErr-360;
-  if (yawDeltaErr<-180) yawDeltaErr=yawDeltaErr+360;
+  //if (yawDeltaErr>180) yawDeltaErr=yawDeltaErr-360;
+  //if (yawDeltaErr<-180) yawDeltaErr=yawDeltaErr+360;
   int motorDeltaOut=round(yawDeltaErr*yawSPGain);  
+  Serial.print("yaw rate =");
+  Serial.print(yawDelta);
   return motorDeltaOut; 
  
 }
@@ -451,15 +466,19 @@ float measureSpeed(int motNo)
 void loop() {
   //uint8_t i;
   float yawTemp;
+  float yawSpeedTarget=4.0;
   static unsigned long lastClock = micros();
-  unsigned long loopRateMicros = 100000;
+  unsigned long loopRateMicros = 25000;
   int outSpeed[2]={0,0};
-  static char serialBuffer[100];
+  static char serialBuffer[200];
   static int bufferPos=0;
   String inString="";
   char serialInByte;
+  float keyboardHeadingTarget=999.0;
   bool keyboardInputReady=false;
   bool singleKeyCommandSkip=false;
+  static float joyStickYAnalog=0;
+  static float joyStickXAnalog=0;
   yawTemp = updateYaw();
     if (yawTemp > -1.0) {    //???????
       yaw = yawTemp - initialYaw;
@@ -472,7 +491,8 @@ void loop() {
     //Serial.println(lastClock);
     
     //byte inString[116];
-    String inString;
+    String inString="";
+    String internalString="";
     
     while (Serial.available() > 0) 
     {      
@@ -481,20 +501,22 @@ void loop() {
       bufferPos++;
       if (bufferPos>63) {
         bufferPos=0;
-        inString="";
-      }
-      //Serial.print("bufferPos =");
-      //Serial.println(bufferPos);
-      if (serialInByte=='$') { 
-        
-        inString="";       
-        for(int i=0;i<bufferPos-1;i++){
-          inString+=serialBuffer[i];
-        } 
-        inString+='\0';
-        keyboardInputReady=true;         
-        break;
+        internalString="";
       }      
+      if (serialInByte=='$') {         
+        internalString="";       
+        for(int i=0;i<bufferPos-1;i++){
+          internalString+=serialBuffer[i];
+        } 
+        internalString+='\0'; 
+        bufferPos=0;       
+        //keyboardInputReady=true;         
+        //break;
+      }      
+    }
+    if(internalString.length()>0){
+    inString=internalString;
+    keyboardInputReady=true;
     }
       //if (inByte
       //byte inString[116];
@@ -531,7 +553,18 @@ void loop() {
          calibrate();
          singleKeyCommandSkip=true;
       }
-      
+      if (inString.substring(0,2)=="JY"){
+         String shortString=inString.substring(2,inString.length());
+         joyStickYAnalog=shortString.toFloat();
+         if(abs(joyStickYAnalog)<.01) joyStickYAnalog=0.0;         
+         singleKeyCommandSkip=true;
+      }
+      if (inString.substring(0,2)=="JX"){
+         String shortString=inString.substring(2,inString.length());
+         joyStickXAnalog=shortString.toFloat();
+         if(abs(joyStickXAnalog)<.01) joyStickXAnalog=0.0;         
+         singleKeyCommandSkip=true;
+      }
       // = Serial.read();
       // do something different depending on the character received.
       // The switch statement expects single number values for each case;
@@ -550,14 +583,19 @@ void loop() {
         case 's': //stop          
           manualSpeed[0]=0;
           manualSpeed[1]=0;
+          headingTarget=yaw;
           break;
         case 'a': //left
-          manualSpeed[0]=-staticSpeed;
-          manualSpeed[1]=staticSpeed;          
+          keyboardHeadingTarget-=5.0;
+          if(keyboardHeadingTarget<0.0) keyboardHeadingTarget+=360.0; 
+          //manualSpeed[0]=-staticSpeed;
+          //manualSpeed[1]=staticSpeed;          
           break;
         case 'd': //right
-          manualSpeed[0]=staticSpeed;
-          manualSpeed[1]=-staticSpeed;
+          keyboardHeadingTarget+=5.0;
+          if(keyboardHeadingTarget>=360.0) keyboardHeadingTarget-=360.0;
+          //manualSpeed[0]=staticSpeed;
+          //manualSpeed[1]=-staticSpeed;
            break;
         case 'x': //backup
           manualSpeed[0]=-staticSpeed;
@@ -586,13 +624,31 @@ void loop() {
       bufferPos=0; 
       inString="";   
     }
-        
+    for (int i = 0; i < 2; i++)
+    {
+      motorSpeed[i] = measureSpeed(i); 
+    }
+    if(joyStickYAnalog!=0) manualSpeed[1]=-joyStickYAnalog*255;
+    if(joyStickYAnalog==0 && abs(manualSpeed[1])!=staticSpeed) manualSpeed[1]=0;  
     autoSpeed[1]=speedControl(manualSpeed[1],1,1);
-    deltaMotor=speedControl(motDeltaFromYaw(yaw,0),1,-1);    
+    if(joyStickXAnalog>.01){
+      headingTarget=yaw+10;
+      if (headingTarget>359) headingTarget-=360;
+      yawSpeedTarget=joyStickXAnalog*8;
+    }
+    if(joyStickXAnalog<-.01){
+      headingTarget=yaw-10;
+      if (headingTarget<0) headingTarget+=360;
+      yawSpeedTarget=-joyStickXAnalog*8;
+    }
+    if(abs(joyStickXAnalog)<.01){
+    if(keyboardHeadingTarget<999) headingTarget=keyboardHeadingTarget;
+    else headingTarget=yaw;
+    } 
+    deltaMotor=speedControl(motDeltaFromYaw(yaw,headingTarget,yawSpeedTarget),1,-1);    
     outSpeed[0]=manualSpeed[0];
-    //outSpeed[1]=manualSpeed[1];
-    
-    //deltaMotor=motDeltaFromYaw(yaw,0);
+    if((autoSpeed[1]+abs(deltaMotor))>256) autoSpeed[1]=256-abs(deltaMotor); 
+    if((autoSpeed[1]-abs(deltaMotor))<-256) autoSpeed[1]=-256+abs(deltaMotor);
     outSpeed[0]=autoSpeed[1]+deltaMotor;
     outSpeed[1]=autoSpeed[1]-deltaMotor;
     if(motorEnable){
@@ -606,10 +662,7 @@ void loop() {
       if(outSpeed[0]<0) portMotor->run(BACKWARD);
     } 
 
-    for (int i = 0; i < 2; i++)
-    {
-      motorSpeed[i] = measureSpeed(i); 
-    } 
+     
     
     Serial.print(millis());
     Serial.print(" , ");
@@ -629,8 +682,8 @@ void loop() {
     //Serial.print(" , ");
     //Serial.println(gz);
     //Serial.print(" , ")
-    Serial.print("yaw,");
-    Serial.println(yaw);    
+    Serial.print("yaw delta,");
+    Serial.println(yaw-headingTarget);    
     //Serial.print("magYaw,");
     //Serial.println(magYaw);
     //Serial.print(" , ")
@@ -640,6 +693,15 @@ void loop() {
     //Serial.print(" , ");
     //Serial.print(manualSpeed[1]);
     //Serial.print(" , ");
+    Serial.print("Joystic X,Y = ");
+    Serial.print(joyStickXAnalog);
+    Serial.print(" , ");
+    Serial.println(joyStickYAnalog);
+    Serial.print("Measured speed=");
+    //Serial.print(" , ");
+    Serial.print(motorSpeed[0]);
+    Serial.print(" , ");
+    Serial.println(motorSpeed[1]);
     Serial.print("outSpeed=");
     //Serial.print(" , ");
     Serial.print(outSpeed[0]);
