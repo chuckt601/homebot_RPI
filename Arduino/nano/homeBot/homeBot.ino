@@ -16,7 +16,7 @@
 #include <string>
 #include <iostream>
 //void encoderSetup();
-
+int analogPin = A0; // battery voltage thru a voltage divider to ensure its below 3.3v
 unsigned long microsPerReading, microsPrevious;
 Madgwick filter;
 bool motorEnable=false;
@@ -32,11 +32,11 @@ float headingTarget=0.0;
 float mx,my,mz; //units = Deg/second
 float gx,gy,gz; //degrees/sec
 float magYaw;
-float magXOffset=85.91;
-float magYOffset=50.02;
+float magXOffset=17.3;//85.91;
+float magYOffset=19.5;//50.02;
 float gXOffset=.59;
-float gYOffset=1.80;
-float gZOffset=.69;
+float gYOffset=1.30;
+float gZOffset=.50;
 float motorSpeed[2];
 int portSpeed=0;
 volatile int encoderCount[2] = {0, 0}; //port=0 starboard=1
@@ -88,6 +88,16 @@ void setup() {
 
 }
 //==========================================================================================
+float readAnalogVoltage(){
+  int rawReading;
+  float batVoltage;
+  rawReading = analogRead(analogPin);  // read the input pin
+  batVoltage=rawReading*18.2/1024;
+  //Serial.print("battery Voltage=");
+  //Serial.println(batVoltage);          // debug value
+  return batVoltage;
+}
+//==========================================================================================
 void calibrate(){
   float calX[4]={0,0,0,0}; // 0=360deg, 1=90deg, 2=180deg, 3=270deg
   float calY[4]={0,0,0,0};
@@ -96,6 +106,7 @@ void calibrate(){
   float calXRange[2]={9999,-9999};// 0=min, 1=max  
   float calYRange[2]={9999,-9999};
   unsigned int startCountMillis=millis();
+  unsigned int timerOffset=0;
   //float mx,my,mz;
   float cumMx, cumMy;
   float cumGX,cumGY,cumGZ;
@@ -108,8 +119,10 @@ void calibrate(){
   cumGX=0;
   cumGY=0;
   cumGZ=0;
-  while(millis()<startCountMillis+2000){}
-  while(millis()<startCountMillis+4000){ //measure 0 heading
+  timerOffset+=2000;
+  while(millis()<startCountMillis+timerOffset){}    //wait to stabalize
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){ //measure 0 heading
    yaw=updateYaw(); 
    if (yaw>-1.0) {     
      cumMx+=mx;     
@@ -136,10 +149,11 @@ void calibrate(){
   cumMy=0;
   digitalWrite(LED_BUILTIN,false);
   Serial.println("Please turn bot right to 90 deg and wait");
-  while(millis()<startCountMillis+6000){
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){   
    yaw=updateYaw(); 
    if (yaw>-1.0) {    
-     if(mx>calXRange[1]) calXRange[1]=mx;
+     if(mx>calXRange[1]) calXRange[1]=mx;  //contineu to search for max/min magnatometer during turn
      if(my>calYRange[1]) calYRange[1]=my; 
      if(mx<calXRange[0]) calXRange[0]=mx;
      if(my<calYRange[0]) calYRange[0]=my; 
@@ -147,7 +161,8 @@ void calibrate(){
   }
   digitalWrite(LED_BUILTIN,true);
   Serial.println("90 degree Measurement in progress do not move bot until instructed");
-  while(millis()<startCountMillis+8000){ //measure 90 heading
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){ //measure 90 heading
   yaw=updateYaw(); 
    if (yaw>-1.0) {
      cumMx+=mx;
@@ -167,7 +182,8 @@ void calibrate(){
   cumMy=0;
   digitalWrite(LED_BUILTIN,false);
   Serial.println("Please turn bot right to 180 deg and wait");
-  while(millis()<startCountMillis+10000){
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){
   yaw=updateYaw(); 
    if (yaw>-1.0) {     
      if(mx>calXRange[1]) calXRange[1]=mx;
@@ -178,7 +194,8 @@ void calibrate(){
   } 
   Serial.println("180 degree Measurement in progress do not move bot until instructed");
   digitalWrite(LED_BUILTIN,true);
-  while(millis()<startCountMillis+12000){ //measure 180 heading
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){ //measure 180 heading
    yaw=updateYaw(); 
    if (yaw>-1.0) {
      cumMx+=mx;
@@ -198,7 +215,8 @@ void calibrate(){
   cumMy=0;
   digitalWrite(LED_BUILTIN,false);
   Serial.println("Please turn bot right to 270 deg and wait");
-  while(millis()<startCountMillis+14000){
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){
   yaw=updateYaw(); 
    if (yaw>-1.0) {     
      if(mx>calXRange[1]) calXRange[1]=mx;
@@ -209,7 +227,8 @@ void calibrate(){
   }
   Serial.println("270 degree Measurement in progress do not move bot until instructed");
   digitalWrite(LED_BUILTIN,true);
-  while(millis()<startCountMillis+16000){  //measure 270 heading
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){  //measure 270 heading
   yaw=updateYaw(); 
    if (yaw>-1.0) {
      cumMx+=mx;
@@ -225,7 +244,8 @@ void calibrate(){
   }
   digitalWrite(LED_BUILTIN,false);
   Serial.println("Please turn bot right to 360 deg and wait");
-  while(millis()<startCountMillis+18000){
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){
   yaw=updateYaw(); 
    if (yaw>-1.0) {     
      if(mx>calXRange[1]) calXRange[1]=mx;
@@ -242,7 +262,8 @@ void calibrate(){
   cumMy=0;
   Serial.println("Final Measurement in progress do not move bot until instructed");
   digitalWrite(LED_BUILTIN,true);
-  while(millis()<startCountMillis+24000){  //measure initial yaw 
+  timerOffset+=3000;
+  while(millis()<startCountMillis+timerOffset){  //measure initial yaw 
     yaw=updateYaw();
     if (yaw>-1.0) initialYaw=yaw;
   }
@@ -317,33 +338,38 @@ int motDeltaFromYaw(float yaw, float HeadingTarget, float yawSpeedTargetMagnitud
   //float yawSpeedTargetMagnitude=4; 
   float yawSpeedTarget=0;
   float yawDeadBand=3;
-  float yawSPGain=50; 
+  float yawSPGain=.01; 
   float yawErr=HeadingTarget-yaw;
   static float yawOld=0;             //only initialize first time
-  float yawDelta=yaw-yawOld;
+  float tachTurnSpeedMeasured=(motorSpeed[0]-motorSpeed[1])/2;
+  float yawDelta=tachTurnSpeedMeasured;//yaw-yawOld;
   yawOld=yaw;
   if (yawErr>180) yawErr=yawErr-360;
   if (yawErr<-180) yawErr=yawErr+360;
   if (yawErr>90) yawErr=90;
   if (yawErr<-90) yawErr=-90;
-  if(abs(motorSpeed[0]+motorSpeed[1])>100 && (motorSpeed[1]*motorSpeed[0])>=0){  //Moving straight= low gain and no deadband
-  //if(abs(motorSpeed[0])<1 && abs(motorSpeed[1])<1){
-    yawSPGain=15;
-    yawSpeedTargetMagnitude=2;
-    yawDeadBand=1;
+
+  //dynamic vs Static section - disabled
+  if(abs(motorSpeed[0])>100 && abs(motorSpeed[1])>100 && (motorSpeed[1]*motorSpeed[0])>=0){  //Moving straight= low gain and no deadband
+  
+  //  yawSpeedTargetMagnitude=2;
+   // yawDeadBand=1;
   }
   else{
-    if(abs(motorSpeed[0]+motorSpeed[1])>100) yawSPGain-=15;  //dynamic lower gain even if turning
-    if (abs(yawErr)<yawDeadBand) return 0;
+  //  if(abs(motorSpeed[0])>100 && abs(motorSpeed[1])>100) yawSPGain=15;  //dynamic lower gain even if turning
   }
+  //
+  if (abs(yawErr)<=yawDeadBand) return 0;
   if (yawErr<-yawDeadBand) yawSpeedTarget=-yawSpeedTargetMagnitude;
   if (yawErr>yawDeadBand) yawSpeedTarget=yawSpeedTargetMagnitude;
-  float yawDeltaErr=yawSpeedTarget-yawDelta;
+  float yawDeltaErr=yawSpeedTarget*50000-yawDelta;
   //if (yawDeltaErr>180) yawDeltaErr=yawDeltaErr-360;
   //if (yawDeltaErr<-180) yawDeltaErr=yawDeltaErr+360;
   int motorDeltaOut=round(yawDeltaErr*yawSPGain);  
   Serial.print("yaw rate =");
   Serial.print(yawDelta);
+  motorDeltaOut=max(motorDeltaOut,-254);
+  motorDeltaOut=min(motorDeltaOut,254);
   return motorDeltaOut; 
  
 }
@@ -398,21 +424,27 @@ int speedControl(float targetSpeed, int tach0Input, int tach1Input)
 
 { 
   float speedSGain=.9;
-  float speedPGain=.02;
-  float speedIGain=.12;
+  float speedPGain=.00;
+  float speedIGain=.00;
   
-  int integratorDepth=15;
-  float integratorArray[integratorDepth]={ };
+  const int integratorDepth=15;
+  static float integratorArray[integratorDepth][2]={ };
   float integratorSum=0;  
   int lowSpeedOffset=10; //min motor dac to get reliable movment
   float calculatedSpeed=(tach0Input*motorSpeed[0]+tach1Input*motorSpeed[1])/(abs(tach0Input)+abs(tach1Input));  
-  float err=targetSpeed*13.0f-calculatedSpeed; //motorSpeed[motNo];  
-  static int i=0;
-  integratorArray[i]=err;
-  if (i<integratorDepth) i++;
-  if (i==integratorDepth) i=0;
-  integratorSum=0;
-  for (int j=0;j<integratorDepth;j++) integratorSum+=integratorArray[j];  
+  float err=targetSpeed*13.0f-calculatedSpeed; //motorSpeed[motNo]; 
+  int controlType=0; //fwd servo
+  if (tach0Input+tach1Input==0) controlType=1;  //turning servo
+   
+  static int integratorCurrentPointer=0;
+  //integratorArray[i,C]=err;
+  //if (i<integratorDepth) i++;
+  //if (i==integratorDepth) i=0;
+  //integratorSum=0;
+  integratorArray[integratorCurrentPointer][controlType]=err;
+  if (integratorCurrentPointer+1>=integratorDepth)integratorCurrentPointer=0;
+  else integratorCurrentPointer++;
+  for (int j=0;j<integratorDepth;j++) integratorSum+=integratorArray[j][controlType];  
   //Serial.println(integratorSum/float(integratorDepth)*speedIGain);
   int control=int(targetSpeed*speedSGain+err*speedPGain+integratorSum*speedIGain/float(integratorDepth));  
   if (control>0) control=control+(lowSpeedOffset-1);
@@ -466,7 +498,7 @@ float measureSpeed(int motNo)
 void loop() {
   //uint8_t i;
   float yawTemp;
-  float yawSpeedTarget=4.0;
+  float yawSpeedTarget=.15;
   static unsigned long lastClock = micros();
   unsigned long loopRateMicros = 25000;
   int outSpeed[2]={0,0};
@@ -479,6 +511,9 @@ void loop() {
   bool singleKeyCommandSkip=false;
   static float joyStickYAnalog=0;
   static float joyStickXAnalog=0;
+  static float joyStickInhibitAnalog=0;
+  static boolean joyStickXWasOn=false;
+  static boolean joyStickYWasOn=false; 
   yawTemp = updateYaw();
     if (yawTemp > -1.0) {    //???????
       yaw = yawTemp - initialYaw;
@@ -489,7 +524,7 @@ void loop() {
     lastClock = lastClock + loopRateMicros;
     //Serial.print("main loop micros=");
     //Serial.println(lastClock);
-    
+    readAnalogVoltage();
     //byte inString[116];
     String inString="";
     String internalString="";
@@ -565,6 +600,17 @@ void loop() {
          if(abs(joyStickXAnalog)<.01) joyStickXAnalog=0.0;         
          singleKeyCommandSkip=true;
       }
+      if (inString.substring(0,2)=="JZ"){
+         String shortString=inString.substring(2,inString.length());
+         joyStickInhibitAnalog=shortString.toFloat();
+         if(abs(joyStickInhibitAnalog)<.1) {
+           motorEnable=false;
+           portMotor->run(RELEASE);
+          starboardMotor->run(RELEASE);         
+         }
+         else motorEnable=true;
+         singleKeyCommandSkip=true;
+      }
       // = Serial.read();
       // do something different depending on the character received.
       // The switch statement expects single number values for each case;
@@ -586,13 +632,13 @@ void loop() {
           headingTarget=yaw;
           break;
         case 'a': //left
-          keyboardHeadingTarget-=5.0;
+          keyboardHeadingTarget=headingTarget-5.0;
           if(keyboardHeadingTarget<0.0) keyboardHeadingTarget+=360.0; 
           //manualSpeed[0]=-staticSpeed;
           //manualSpeed[1]=staticSpeed;          
           break;
         case 'd': //right
-          keyboardHeadingTarget+=5.0;
+          keyboardHeadingTarget=headingTarget+5.0;
           if(keyboardHeadingTarget>=360.0) keyboardHeadingTarget-=360.0;
           //manualSpeed[0]=staticSpeed;
           //manualSpeed[1]=-staticSpeed;
@@ -628,25 +674,38 @@ void loop() {
     {
       motorSpeed[i] = measureSpeed(i); 
     }
-    if(joyStickYAnalog!=0) manualSpeed[1]=-joyStickYAnalog*255;
-    if(joyStickYAnalog==0 && abs(manualSpeed[1])!=staticSpeed) manualSpeed[1]=0;  
+    if(abs(joyStickYAnalog)>.03){    
+      manualSpeed[1]=-joyStickYAnalog*255;
+      joyStickYWasOn=true;
+    }
+    if(abs(joyStickYAnalog)<.03 && joyStickYWasOn){
+      manualSpeed[1]=0;
+      joyStickYWasOn=false;  
+    }
     autoSpeed[1]=speedControl(manualSpeed[1],1,1);
-    if(joyStickXAnalog>.01){
+    if(joyStickXAnalog>=.03){
       headingTarget=yaw+10;
+      joyStickXWasOn=true;
       if (headingTarget>359) headingTarget-=360;
-      yawSpeedTarget=joyStickXAnalog*8;
+      yawSpeedTarget=joyStickXAnalog;
     }
-    if(joyStickXAnalog<-.01){
+    if(joyStickXAnalog<=-.03){
       headingTarget=yaw-10;
+      joyStickXWasOn=true;
       if (headingTarget<0) headingTarget+=360;
-      yawSpeedTarget=-joyStickXAnalog*8;
+      yawSpeedTarget=-joyStickXAnalog;
     }
-    if(abs(joyStickXAnalog)<.01){
-    if(keyboardHeadingTarget<999) headingTarget=keyboardHeadingTarget;
-    else headingTarget=yaw;
+    if(abs(joyStickXAnalog)<.03){ 
+      if(joyStickXWasOn){  
+        joyStickXWasOn=false;
+        //headingTarget=yaw;
+      }  
+      else if(keyboardHeadingTarget<999) headingTarget=keyboardHeadingTarget; 
     } 
-    deltaMotor=speedControl(motDeltaFromYaw(yaw,headingTarget,yawSpeedTarget),1,-1);    
-    outSpeed[0]=manualSpeed[0];
+    
+    //deltaMotor=speedControl(motDeltaFromYaw(yaw,headingTarget,yawSpeedTarget),1,-1); 
+    deltaMotor=motDeltaFromYaw(yaw,headingTarget,yawSpeedTarget);   
+    //outSpeed[0]=manualSpeed[0];
     if((autoSpeed[1]+abs(deltaMotor))>256) autoSpeed[1]=256-abs(deltaMotor); 
     if((autoSpeed[1]-abs(deltaMotor))<-256) autoSpeed[1]=-256+abs(deltaMotor);
     outSpeed[0]=autoSpeed[1]+deltaMotor;
@@ -664,8 +723,8 @@ void loop() {
 
      
     
-    Serial.print(millis());
-    Serial.print(" , ");
+    Serial.println(millis());
+    //Serial.print(" , ");
     //Serial.print("port encoder count = ");
     //Serial.print(encoderCount[0]);
     //Serial.print(" , star encoder=");
@@ -673,23 +732,25 @@ void loop() {
     //Serial.print(" , star speed=");
     //Serial.print(motorSpeed[1],6);
     //*/
-    //Serial.print("Mag( x,y,z), gz = ");
-    //Serial.print(mx);
-    //Serial.print(" , ");
-    //Serial.print(my);
+    Serial.print("Mag( x,y,z), gz = ");
+    Serial.print(mx);
+    Serial.print(" , ");
+    Serial.println(my);
     //Serial.print(" , ");
     //Serial.println(mz);
     //Serial.print(" , ");
     //Serial.println(gz);
     //Serial.print(" , ")
-    Serial.print("yaw delta,");
+    Serial.print("yaw,yaw delta=");
+    Serial.print(yaw);
+    Serial.print(" , ");
     Serial.println(yaw-headingTarget);    
     //Serial.print("magYaw,");
     //Serial.println(magYaw);
     //Serial.print(" , ")
     
-    //Serial.print("motor delta,");
-    //Serial.println(deltaMotor);
+    Serial.print("motor delta =");
+    Serial.println(deltaMotor);
     //Serial.print(" , ");
     //Serial.print(manualSpeed[1]);
     //Serial.print(" , ");

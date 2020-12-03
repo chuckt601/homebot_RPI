@@ -88,6 +88,13 @@ public class inputAnalyze
 			  //System.out.println(joyStickTurnAnalog);
 			  outputString="JX"+ turnString + "$";
 			} 
+			if (inputJoyStick.contains("Z Axis changed to")){
+			  String turnString=inputJoyStick.substring(locComma+18,len);
+			  System.out.println(turnString);
+			  joyStickTurnAnalog=Float.parseFloat(turnString);
+			  //System.out.println(joyStickTurnAnalog);
+			  outputString="JZ"+ turnString + "$";
+			}
 	    }
 	  }
 	}      	
