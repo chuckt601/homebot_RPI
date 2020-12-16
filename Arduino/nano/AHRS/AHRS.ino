@@ -1,4 +1,5 @@
 //yaw is working, gyro gains too high. how to adjust?
+//adgusted gyro gain by dividing sample frequnecy input into filter tricking it to integrate harder than planned
 
 
 #include <MadgwickAHRS.h>
@@ -7,6 +8,7 @@
 //float invSqrt(float x);
 unsigned long microsPerReading, microsPrevious;
 Madgwick filter;
+//filter.setBeta(.
 
 void setup() {
   // put your setup code here, to run once:
@@ -38,7 +40,7 @@ Serial.begin(9600);
   Serial.println("Magnetic Field in uT");
   Serial.println("X\tY\tZ");
   
-  filter.begin(100);
+  filter.begin(100/1.5);
   // initialize variables to pace updates to correct rate
   microsPerReading = 1000000 /100;
   microsPrevious = micros(); 
@@ -49,7 +51,7 @@ void loop() {
   float ax, ay, az;
   float gx, gy, gz;
   float mx, my, mz;
-  unsigned long microsNow;
+  static unsigned long microsNow=micros();
   // check if it's time to read data and update the filter
   microsNow = micros();
   if (microsNow - microsPrevious >= microsPerReading) {
@@ -64,22 +66,22 @@ void loop() {
     if (IMU.magneticFieldAvailable()) {
       IMU.readMagneticField(mx, my, mz); 
     }
-    Serial.print(mx);
-    Serial.print(" , ");    
+    //Serial.print(mx);
+    //Serial.print(" , ");    
     //Serial.print(my);
     //Serial.print(" , "); 
     //Serial.println(mz);   
    
-    filter.update(gx, -gy, gz, ax, -ay, az,-(my-40),(mx-92.5), mz);  //manualy measured offsets for x and y magnatometer
+    filter.update(gx, -gy, gz, ax, -ay, az,-(my-12.0),(mx-35.5), mz);  //manualy measured offsets for x and y magnatometer
   
     //double siny_cosp = 2 * (q0 * q3 + q1 * q2);
     //double cosy_cosp = 1 - 2 * (q2 * q2 + q3 * q3);
     float  yaw = 360-filter.getYaw();
     Serial.print("yaw = ");
-    Serial.print(yaw);
-    Serial.print(" , ");    
-    Serial.print(mx-92.5);
-    Serial.print(" , "); 
-    Serial.println(my-40);    
+    Serial.println(yaw);
+    //Serial.print(" , ");    
+    //Serial.print(mx-35.5);
+    //Serial.print(" , "); 
+    //Serial.println(my-12.0);    
   } 
 }

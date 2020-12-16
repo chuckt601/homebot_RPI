@@ -28,8 +28,10 @@ public class homebot {
 	  //ServerThreaded joyStick = new ServerThreaded();	
 	           
 	   try{	       
-           OutputStream fos = new FileOutputStream("test.txt",false);           
-           fos.close();           
+           OutputStream fos = new FileOutputStream("test.txt",false);    //erase old test.txt file       
+           fos.close();  
+           OutputStream fos2 = new FileOutputStream("yaw.dat",false);          
+           fos2.close();         
 	       comPort.openPort(); 
 	       comPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0);
            }  
@@ -40,17 +42,23 @@ public class homebot {
   //=======================================================================================
   public static void loop() {
 	long endTimeMillis=System.currentTimeMillis();
-	boolean terminate=false;  
+	boolean terminate=false;
+	String inputString="";  
     while(!terminate) { 
 		long startTimeMillis=System.currentTimeMillis(); 
 		//System.out.println(endTimeMillis-startTimeMillis);
-		while (startTimeMillis<endTimeMillis+25) startTimeMillis=System.currentTimeMillis();   
+		while (startTimeMillis<endTimeMillis+30) startTimeMillis=System.currentTimeMillis();   
 		//System.out.println(System.currentTimeMillis());  		
-		String inputString=keyboard();			
-		String inputJoyStick= joyStick.serverLoopOnce();		
-		inputString=ana.inputAnalyze(inputString,inputJoyStick);
+		String keyboardString=keyboard();			
+		String inputJoyStick= joyStick.serverLoopOnce();				
+		if (keyboardString.length()>0) inputString=keyboardString;
+		else inputString=inputJoyStick; 
+		if (inputString!=null && inputString.length()>0){
+			inputString="%"+inputString+"$";
+			//System.out.print("joystick string=");
+	        //System.out.println(inputString);	
 					
-		if (inputString.length()>0) {          
+		 if (inputString.length()>0) {          
           switch (inputString.charAt(0)) {
 			case 'q':  
               terminate=true;
@@ -62,12 +70,13 @@ public class homebot {
 			  break;			  
 	   	  }
 	   	  if (terminate) break;	   	  
-	   	  serialOut(inputString);
+	   	  serialOut(inputString);  //send command to arduino
 	   	  	   	    
-	   	  //fileOut(inputString);	   	            
+	   	  //fileOut(inputString);
+	     }	   	            
         }        
-	   	String inString=serialIn();
-	   	findYaw.scanSerial(inString);
+	   	String inString=serialIn();  // get data from arduino
+	    findYaw.scanSerial(inString);
 	   	findmagYaw.scanSerial(inString);
 	   	findcalibdata.scanSerial(inString);
         endTimeMillis=System.currentTimeMillis();
@@ -95,9 +104,9 @@ public class homebot {
 	}
 	if (inputString.length()>0){
 	  //String excape={char(13)};	
-	  inputString=inputString+'$';	
-	  //System.out.print("keyboard string=");
-	  //System.out.println(inputString);
+	  //inputString=inputString+'$';	
+	  System.out.print("keyboard string=");
+	  System.out.println(inputString);
     } 
 	return inputString;
   }

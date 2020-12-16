@@ -69,6 +69,9 @@ public:
         if (!anglesComputed) computeAngles();
         return yaw;
     }
+    void setBeta(float newBeta){
+      beta=newBeta;   
+    } 
 };
 #endif
 

@@ -18,9 +18,9 @@ public class ServerThreaded {
     
     public ServerThreaded(){	  	
 	  try (ServerSocket serverSocket = new ServerSocket(6868)) {     //initiate socket
-         System.out.println("Server is listening on port " + "6868");
+         System.out.println("Server is listening on ports " + "6868");
          Socket socket = serverSocket.accept();
-         System.out.println("New client connected");                
+         System.out.println("New connected");                
          new ServerThread(socket,queue).start();         
        } catch (IOException ex) {
             System.out.println("Server exceptionary: " + ex.getMessage());
@@ -31,13 +31,17 @@ public class ServerThreaded {
 	
 	public static String serverLoopOnce(){
 	  String text="";	
-	  try {text=queue.poll(1L,TimeUnit.MICROSECONDS);}
+	  try {
+		  text=queue.poll(1L,TimeUnit.MICROSECONDS);
+		  queue.clear();
+	  }
       catch (InterruptedException ex){
 		System.out.println("taking from queue error" + ex.getMessage());
         ex.printStackTrace();
       }
       if (text!=null){ 
-       //System.out.println(text);//msg.getMsg()); 
+	   //System.out.println("null text in queue"); 	  
+      //System.out.println(text);//msg.getMsg()); 
 	  }
 	  return text;
     }
