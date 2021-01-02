@@ -5,7 +5,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
-#include "ArduinoIncludes.h"
 #include "std_msgs/Header.h"
 #include "nav_msgs/MapMetaData.h"
 
@@ -27,11 +26,11 @@ namespace nav_msgs
     OccupancyGrid():
       header(),
       info(),
-      data_length(0), data(NULL)
+      data_length(0), st_data(), data(nullptr)
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       offset += this->header.serialize(outbuffer + offset);
@@ -53,7 +52,7 @@ namespace nav_msgs
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       offset += this->header.deserialize(inbuffer + offset);
@@ -80,8 +79,8 @@ namespace nav_msgs
      return offset;
     }
 
-    const char * getType(){ return PSTR( "nav_msgs/OccupancyGrid" ); };
-    const char * getMD5(){ return PSTR( "3381f2d731d4076ec5c71b0759edbe4e" ); };
+    virtual const char * getType() override { return "nav_msgs/OccupancyGrid"; };
+    virtual const char * getMD5() override { return "3381f2d731d4076ec5c71b0759edbe4e"; };
 
   };
 

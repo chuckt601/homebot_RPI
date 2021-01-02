@@ -9,9 +9,10 @@ public class homebot {
   public static SerialPort comPort = SerialPort.getCommPort("dev/ttyACM0");
   public static ServerThreaded joyStick = new ServerThreaded();
   public static inputAnalyze ana= new inputAnalyze();
-  static StringScan findYaw = new StringScan("yaw");
+  //static StringScan findYaw = new StringScan("yaw");
   static StringScan findmagYaw = new StringScan("magYaw");
-  static StringScan findcalibdata = new StringScan("calibration_data");  
+  static StringScan findcalibdata = new StringScan("calibration_data");
+  static StringScan findodomdata = new StringScan("odometry");  
   //
   
   //static int matchStringCounter=0;
@@ -30,8 +31,10 @@ public class homebot {
 	   try{	       
            OutputStream fos = new FileOutputStream("test.txt",false);    //erase old test.txt file       
            fos.close();  
-           OutputStream fos2 = new FileOutputStream("yaw.dat",false);          
-           fos2.close();         
+           //OutputStream fos2 = new FileOutputStream("yaw.dat",false);          
+           //fos2.close();  
+           OutputStream fos3 = new FileOutputStream("odometry.dat",false);          
+           fos3.close();        
 	       comPort.openPort(); 
 	       comPort.setComPortTimeouts(SerialPort.TIMEOUT_NONBLOCKING, 0, 0);
            }  
@@ -47,7 +50,7 @@ public class homebot {
     while(!terminate) { 
 		long startTimeMillis=System.currentTimeMillis(); 
 		//System.out.println(endTimeMillis-startTimeMillis);
-		while (startTimeMillis<endTimeMillis+30) startTimeMillis=System.currentTimeMillis();   
+		while (startTimeMillis<endTimeMillis+32) startTimeMillis=System.currentTimeMillis();   
 		//System.out.println(System.currentTimeMillis());  		
 		String keyboardString=keyboard();			
 		String inputJoyStick= joyStick.serverLoopOnce();				
@@ -76,9 +79,10 @@ public class homebot {
 	     }	   	            
         }        
 	   	String inString=serialIn();  // get data from arduino
-	    findYaw.scanSerial(inString);
+	    //findYaw.scanSerial(inString);
 	   	findmagYaw.scanSerial(inString);
 	   	findcalibdata.scanSerial(inString);
+	   	findodomdata.scanSerial(inString);
         endTimeMillis=System.currentTimeMillis();
 	  }
   

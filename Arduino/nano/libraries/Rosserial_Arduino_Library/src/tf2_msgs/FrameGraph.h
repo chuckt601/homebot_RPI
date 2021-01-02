@@ -4,12 +4,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
-#include "ArduinoIncludes.h"
 
 namespace tf2_msgs
 {
 
-static const char FRAMEGRAPH[] PROGMEM = "tf2_msgs/FrameGraph";
+static const char FRAMEGRAPH[] = "tf2_msgs/FrameGraph";
 
   class FrameGraphRequest : public ros::Msg
   {
@@ -19,20 +18,20 @@ static const char FRAMEGRAPH[] PROGMEM = "tf2_msgs/FrameGraph";
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
      return offset;
     }
 
-    const char * getType(){ return FRAMEGRAPH; };
-    const char * getMD5(){ return PSTR( "d41d8cd98f00b204e9800998ecf8427e" ); };
+    virtual const char * getType() override { return FRAMEGRAPH; };
+    virtual const char * getMD5() override { return "d41d8cd98f00b204e9800998ecf8427e"; };
 
   };
 
@@ -47,7 +46,7 @@ static const char FRAMEGRAPH[] PROGMEM = "tf2_msgs/FrameGraph";
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       uint32_t length_frame_yaml = strlen(this->frame_yaml);
@@ -58,7 +57,7 @@ static const char FRAMEGRAPH[] PROGMEM = "tf2_msgs/FrameGraph";
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       uint32_t length_frame_yaml;
@@ -73,8 +72,8 @@ static const char FRAMEGRAPH[] PROGMEM = "tf2_msgs/FrameGraph";
      return offset;
     }
 
-    const char * getType(){ return FRAMEGRAPH; };
-    const char * getMD5(){ return PSTR( "437ea58e9463815a0d511c7326b686b0" ); };
+    virtual const char * getType() override { return FRAMEGRAPH; };
+    virtual const char * getMD5() override { return "437ea58e9463815a0d511c7326b686b0"; };
 
   };
 

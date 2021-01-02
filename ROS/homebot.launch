@@ -1,0 +1,56 @@
+<launch>
+<!--
+ # <node pkg="rosserial_python" type="serial_node.py" name="serial_node">
+ #   <param name="port" value="/dev/ttyACM0"/>
+ # </node>
+-->
+  <node pkg="xv_11_laser_driver" type="neato_laser_publisher" name="neato_laser"> 
+    <param name="port" value="/dev/ttyUSB0"/>
+    <param name="frame_id" value="laser_inv"/> 
+    <param name="firmware_version" value="2"/>
+  </node>
+
+    <node pkg="invert_laser" type="invert_laser_node" name="invert_laser">
+        <param name="out_frame" value="base_link"/>
+    </node>
+
+    <node pkg="tf" type="static_transform_publisher" name="lidar2lidar_inv" args="0 0 0 0 0 3.14159 base_link laser_inv 10" />
+
+  <!--<node pkg="robot_setup_tf" type="tf_broadcaster_laser_inv_frame" name="TF_laser_inv" />-->
+  <node pkg="robot_setup_tf" type="odometry_publisher" name="odom_publisher" /> 
+  
+  <node pkg="gmapping" type="slam_gmapping" name="gmapping" output="screen">
+   <rosparam>
+      odom_frame: odom
+      map_update_interval: 0.5
+      maxUrange: 30.0
+      maxRange: 60.0
+      sigma: 0.05
+      kernelSize: 1
+      lstep: 0.05
+      astep: 0.05
+      iterations: 5
+      lsigma: 0.075
+      ogain: 3.0
+      lskip: 0
+      linearUpdate: 0.5
+      angularUpdate: 0.436
+      temporalUpdate: -1.0
+      resampleThreshold: 0.5
+      particles: 80
+      xmin: -1.0
+      ymin: -1.0
+      xmax: 1.0
+      ymax: 1.0
+      delta: 0.025
+      llsamplerange: 0.01
+      llsamplestep: 0.01
+      lasamplerange: 0.005
+      lasamplestep: 0.005
+      base_frame: base_link
+    </rosparam>
+</node>
+
+  <node type="rviz" name="rviz" pkg="rviz" args="-d /home/ubuntu/molly/lidarconfig.rviz" />
+
+</launch>  

@@ -4,12 +4,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
-#include "ArduinoIncludes.h"
 
 namespace topic_tools
 {
 
-static const char DEMUXDELETE[] PROGMEM = "topic_tools/DemuxDelete";
+static const char DEMUXDELETE[] = "topic_tools/DemuxDelete";
 
   class DemuxDeleteRequest : public ros::Msg
   {
@@ -22,7 +21,7 @@ static const char DEMUXDELETE[] PROGMEM = "topic_tools/DemuxDelete";
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       uint32_t length_topic = strlen(this->topic);
@@ -33,7 +32,7 @@ static const char DEMUXDELETE[] PROGMEM = "topic_tools/DemuxDelete";
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       uint32_t length_topic;
@@ -48,8 +47,8 @@ static const char DEMUXDELETE[] PROGMEM = "topic_tools/DemuxDelete";
      return offset;
     }
 
-    const char * getType(){ return DEMUXDELETE; };
-    const char * getMD5(){ return PSTR( "d8f94bae31b356b24d0427f80426d0c3" ); };
+    virtual const char * getType() override { return DEMUXDELETE; };
+    virtual const char * getMD5() override { return "d8f94bae31b356b24d0427f80426d0c3"; };
 
   };
 
@@ -61,20 +60,20 @@ static const char DEMUXDELETE[] PROGMEM = "topic_tools/DemuxDelete";
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
      return offset;
     }
 
-    const char * getType(){ return DEMUXDELETE; };
-    const char * getMD5(){ return PSTR( "d41d8cd98f00b204e9800998ecf8427e" ); };
+    virtual const char * getType() override { return DEMUXDELETE; };
+    virtual const char * getMD5() override { return "d41d8cd98f00b204e9800998ecf8427e"; };
 
   };
 

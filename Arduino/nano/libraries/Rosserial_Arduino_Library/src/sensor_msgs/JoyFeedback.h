@@ -5,7 +5,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
-#include "ArduinoIncludes.h"
 
 namespace sensor_msgs
 {
@@ -30,7 +29,7 @@ namespace sensor_msgs
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       *(outbuffer + offset + 0) = (this->type >> (8 * 0)) & 0xFF;
@@ -50,7 +49,7 @@ namespace sensor_msgs
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       this->type =  ((uint8_t) (*(inbuffer + offset)));
@@ -71,8 +70,8 @@ namespace sensor_msgs
      return offset;
     }
 
-    const char * getType(){ return PSTR( "sensor_msgs/JoyFeedback" ); };
-    const char * getMD5(){ return PSTR( "f4dcd73460360d98f36e55ee7f2e46f1" ); };
+    virtual const char * getType() override { return "sensor_msgs/JoyFeedback"; };
+    virtual const char * getMD5() override { return "f4dcd73460360d98f36e55ee7f2e46f1"; };
 
   };
 

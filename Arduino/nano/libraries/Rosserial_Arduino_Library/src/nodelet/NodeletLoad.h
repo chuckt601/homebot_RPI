@@ -4,12 +4,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
-#include "ArduinoIncludes.h"
 
 namespace nodelet
 {
 
-static const char NODELETLOAD[] PROGMEM = "nodelet/NodeletLoad";
+static const char NODELETLOAD[] = "nodelet/NodeletLoad";
 
   class NodeletLoadRequest : public ros::Msg
   {
@@ -36,14 +35,14 @@ static const char NODELETLOAD[] PROGMEM = "nodelet/NodeletLoad";
     NodeletLoadRequest():
       name(""),
       type(""),
-      remap_source_args_length(0), remap_source_args(NULL),
-      remap_target_args_length(0), remap_target_args(NULL),
-      my_argv_length(0), my_argv(NULL),
+      remap_source_args_length(0), st_remap_source_args(), remap_source_args(nullptr),
+      remap_target_args_length(0), st_remap_target_args(), remap_target_args(nullptr),
+      my_argv_length(0), st_my_argv(), my_argv(nullptr),
       bond_id("")
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       uint32_t length_name = strlen(this->name);
@@ -100,7 +99,7 @@ static const char NODELETLOAD[] PROGMEM = "nodelet/NodeletLoad";
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       uint32_t length_name;
@@ -193,8 +192,8 @@ static const char NODELETLOAD[] PROGMEM = "nodelet/NodeletLoad";
      return offset;
     }
 
-    const char * getType(){ return NODELETLOAD; };
-    const char * getMD5(){ return PSTR( "c6e28cc4d2e259249d96cfb50658fbec" ); };
+    virtual const char * getType() override { return NODELETLOAD; };
+    virtual const char * getMD5() override { return "c6e28cc4d2e259249d96cfb50658fbec"; };
 
   };
 
@@ -209,7 +208,7 @@ static const char NODELETLOAD[] PROGMEM = "nodelet/NodeletLoad";
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       union {
@@ -222,7 +221,7 @@ static const char NODELETLOAD[] PROGMEM = "nodelet/NodeletLoad";
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       union {
@@ -236,8 +235,8 @@ static const char NODELETLOAD[] PROGMEM = "nodelet/NodeletLoad";
      return offset;
     }
 
-    const char * getType(){ return NODELETLOAD; };
-    const char * getMD5(){ return PSTR( "358e233cde0c8a8bcfea4ce193f8fc15" ); };
+    virtual const char * getType() override { return NODELETLOAD; };
+    virtual const char * getMD5() override { return "358e233cde0c8a8bcfea4ce193f8fc15"; };
 
   };
 

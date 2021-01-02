@@ -1,4 +1,5 @@
 
+
 /*
   This is a test sketch for the Adafruit assembled Motor Shield for Arduino v2
   It won't work with v1.x motor shields! Only for the v2's with built in PWM
@@ -18,12 +19,32 @@
 #include <string>
 #include <iostream>
 #include "homebot.h"
+
+//#include <ros.h>
+//#include <ros/time.h>
+//#include <tf/tf.h>
+//#include <tf/transform_broadcaster.h>
+//#include <nav_msgs/Odometry.h> 
+//#include <std_msgs/String.h>
+//#include <std_msgs/Float32.h>
+
 //void encoderSetup();
 int analogPin = A0; // battery voltage thru a voltage divider to ensure its below 3.3v
 unsigned long microsPerReading, microsPrevious;
 Madgwick filter;
-unsigned long loopRateMicros = 20000;
-float loopFreq=+1000000/loopRateMicros;
+
+//ros::NodeHandle  nh;
+//nav_msgs::Odometry od;
+//std_msgs::String str_msg;
+//ros::Publisher chatter("chatter", &str_msg);
+//std_msgs::Float32 headingDelta_msg;
+//ros::Publisher headingDelta_pub("headingDelta", &headingDelta_msg);
+//ros::Publisher Odometry("/nav_msgs/Odometry", &od);
+//geometry_msgs::TransformStamped t;
+//tf::TransformBroadcaster broadcaster;
+
+
+float loopFreq=1000000/loopRateMicros;  //hz
 bool motorEnable=false;
 int staticSpeed=75;
 int manualSpeed[2] = {0,0};
@@ -32,6 +53,7 @@ int deltaMotor=0;
 
 
 float yaw;
+float yawDelta;
 float yawPoints[4]={47.42,143.76,243.91,329.19};
 float initialYaw;
 float headingTarget=0.0;
@@ -77,12 +99,20 @@ Adafruit_DCMotor *starboardMotor = AFMS.getMotor(1);
 
 //=============================================================================================
 void setup() {
-  Serial.begin(115200);           // set up Serial library at 9600 bps
-  Serial.setTimeout(1000);   
-  Serial.println("Adafruit Motorshield v2 - DC Motor test!");
+  if(!rosOn) Serial.begin(115200);           // set up Serial library at 9600 bps
+  if(!rosOn) Serial.setTimeout(1000);   
+  if(!rosOn) Serial.println("Adafruit Motorshield v2 - DC Motor test!");
+  if(rosOn){
+    /*0
+    nh.initNode();
+    nh.advertise(chatter);
+    broadcaster.init(nh);    
+    nh.advertise(headingDelta_pub);    
+    */ 
+  }
   encoderSetup();
   if (!IMU.begin()) {
-    Serial.println("Failed to initialize IMU!");
+    if(!rosOn) Serial.println("Failed to initialize IMU!");
     while (1);
   }
   AFMS.begin(1000);  // create with the default frequency 1.6KHz
@@ -125,14 +155,38 @@ void setup() {
 //============================================================================================
 void calcOdometry(float yaw, float oldYaw){
   float tachDeltaSum=(tachDelta[0]+tachDelta[1])/2;
-  float deltaYaw=yaw-oldYaw;
-  if(deltaYaw>180) deltaYaw-=180;
-  if(deltaYaw<-180) deltaYaw+=180;
-  float avgYaw=oldYaw+deltaYaw/2;
+  yawDelta=yaw-oldYaw;
+  if(yawDelta>180) yawDelta-=180;
+  if(yawDelta<-180) yawDelta+=180;
+  float avgYaw=oldYaw+yawDelta/2;
   if(avgYaw>360) avgYaw-=360;
   if(avgYaw<0) avgYaw+=360;
-  position[0]+=mPerTach*tachDeltaSum*cos(avgYaw*M_PI/180);// 0 is x direction based on 0 degrees is +x
-  position[1]+=mPerTach*tachDeltaSum*sin(avgYaw*M_PI/180);
+  float deltaPos[2];
+  deltaPos[0]=mPerTach*tachDeltaSum*cos(avgYaw*M_PI/180);
+  deltaPos[1]=mPerTach*tachDeltaSum*sin(avgYaw*M_PI/180);
+  position[0]+=deltaPos[0]; // 0 is x direction based on 0 degrees is +x
+  position[1]+=deltaPos[1];
+  //od.pose.pose.position.x = position[0];//sumX*metersPerTach; // 1.016e-4m/tach pulse    
+  //od.pose.pose.position.y = position[1];//sumY*metersPerTach;
+  //od.twist.twist.linear.x = deltaPos[0];//(intY)*metersPerTach/(loopTimeTarget*.001);   //m/s
+  //od.twist.twist.linear.y = deltaPos[1];//(intX)*metersPerTach/(loopTimeTarget*.001);   //m/s 
+  //headingDelta_msg.data=yaw*180/M_PI;
+  if(!rosOn){
+     Serial.print("odometry,");
+     Serial.print(millis());     //in millis 
+     Serial.print("  ");
+     Serial.print(position[0],6);  //in encoder counts
+     Serial.print("  ");
+     Serial.print(position[1],6);
+     Serial.print("  ");
+     Serial.print(yaw*M_PI/180,3);          //rad
+     Serial.print("  ");
+     Serial.print(deltaPos[0]/loopRateMicros*1.0e6f,6);  //im meters suposed to be in M/sec
+     Serial.print("  ");
+     Serial.print(deltaPos[1]/loopRateMicros*1.0e6f,6);
+     Serial.print("  ");
+     Serial.println(yawDelta*M_PI/180/(loopRateMicros/1.0e6),6);   //suposed to be rad/sec   
+  }
 }
 //============================================================================================
 float yaw2CorrectedYaw (float yaw){
@@ -156,15 +210,16 @@ float yaw2CorrectedYaw (float yaw){
     correctedPoint=90*i;
     correctionWithinZone=90/(internalPoints[iP1]-internalPoints[i])*(yaw-internalPoints[i]);
     correctedYaw=correctedPoint+correctionWithinZone;
-    
-    Serial.print("correction for zone=");
-    Serial.print(correctedPoint);
-    Serial.print(" ,fine correction=");
-    Serial.println(correctionWithinZone);
-    Serial.print("yaw,corrected yaw=");
-    Serial.print(yaw);
-    Serial.print(" , ");
-    Serial.println(correctedYaw);
+    /*
+    if(!rosOn) Serial.print("correction for zone=");
+    if(!rosOn) Serial.print(correctedPoint);
+    if(!rosOn) Serial.print(" ,fine correction=");
+    if(!rosOn) Serial.println(correctionWithinZone);
+    if(!rosOn) Serial.print("yaw,corrected yaw=");
+    if(!rosOn) Serial.print(yaw);
+    if(!rosOn) Serial.print(" , ");
+    if(!rosOn) Serial.println(correctedYaw);
+    */
     return correctedYaw;
    }
   }
@@ -218,10 +273,12 @@ void processJoyStick(String inString) {
 }
 
 //=============================================================================================
-void clearSerialBuffer(){ 
+void clearSerialBuffer(){
+  if(!rosOn){ 
   while(Serial.available() > 0) {
     char t = Serial.read();
-  }   
+  }
+ }    
 } 
 //=============================================================================================
 void myDelay(unsigned long iDelay){
@@ -256,7 +313,7 @@ void calibrate(){
   int   measurements;
   startCountMillis=millis();
   digitalWrite(LED_BUILTIN,true);
-  Serial.println("Calibration in progress, do not move bot until instructed");
+  if(!rosOn) Serial.println("Calibration in progress, do not move bot until instructed");
   measurements=0;
   cumMx=0;
   cumMy=0;
@@ -265,17 +322,17 @@ void calibrate(){
   cumGZ=0;
   timerOffset+=2000;
   
-  Serial.print("current millis=");
-  Serial.println(millis());
-  Serial.print("Target millis=");
-  Serial.println(startCountMillis+timerOffset);
+  if(!rosOn) Serial.print("current millis=");
+  if(!rosOn) Serial.println(millis());
+  if(!rosOn) Serial.print("Target millis=");
+  if(!rosOn) Serial.println(startCountMillis+timerOffset);
   myDelay(2000); 
   //while(millis()<(startCountMillis+timerOffset)){
   //Serial.print("current millis=");
   //Serial.println(millis());  
   //}    //wait to stabalize
   timerOffset+=5000;
-  Serial.println("Starting measurements now");
+  if(!rosOn) Serial.println("Starting measurements now");
   while(millis()<startCountMillis+timerOffset){ //measure 0 heading
    clearSerialBuffer(); 
    yaw=updateYaw(); 
@@ -304,7 +361,7 @@ void calibrate(){
   cumMx=0;
   cumMy=0;
   digitalWrite(LED_BUILTIN,false);
-  Serial.println("Please turn bot right to 90 deg and wait");
+  if(!rosOn) Serial.println("Please turn bot right to 90 deg and wait");
   timerOffset+=3000;
   while(millis()<startCountMillis+timerOffset){   
    clearSerialBuffer();
@@ -319,7 +376,7 @@ void calibrate(){
    
   }
   digitalWrite(LED_BUILTIN,true);
-  Serial.println("90 degree Measurement in progress do not move bot until instructed");
+  if(!rosOn) Serial.println("90 degree Measurement in progress do not move bot until instructed");
   timerOffset+=5000;
   while(millis()<startCountMillis+timerOffset){ //measure 90 heading
    clearSerialBuffer();  
@@ -342,7 +399,7 @@ void calibrate(){
   cumMx=0;
   cumMy=0;
   digitalWrite(LED_BUILTIN,false);
-  Serial.println("Please turn bot right to 180 deg and wait");
+  if(!rosOn) Serial.println("Please turn bot right to 180 deg and wait");
   timerOffset+=3000;
   while(millis()<startCountMillis+timerOffset){
    clearSerialBuffer();
@@ -355,7 +412,7 @@ void calibrate(){
      if(my<calYRange[0]) calYRange[0]=my; 
    }  
   } 
-  Serial.println("180 degree Measurement in progress do not move bot until instructed");
+  if(!rosOn) Serial.println("180 degree Measurement in progress do not move bot until instructed");
   digitalWrite(LED_BUILTIN,true);
   timerOffset+=5000;
   while(millis()<startCountMillis+timerOffset){ //measure 180 heading
@@ -379,7 +436,7 @@ void calibrate(){
   cumMx=0;
   cumMy=0;
   digitalWrite(LED_BUILTIN,false);
-  Serial.println("Please turn bot right to 270 deg and wait");
+  if(!rosOn) Serial.println("Please turn bot right to 270 deg and wait");
   timerOffset+=3000;
   while(millis()<startCountMillis+timerOffset){
   clearSerialBuffer();
@@ -392,7 +449,7 @@ void calibrate(){
      if(my<calYRange[0]) calYRange[0]=my; 
    }  
   }
-  Serial.println("270 degree Measurement in progress do not move bot until instructed");
+  if(!rosOn) Serial.println("270 degree Measurement in progress do not move bot until instructed");
   digitalWrite(LED_BUILTIN,true);
   timerOffset+=5000;
   while(millis()<startCountMillis+timerOffset){  //measure 270 heading
@@ -411,7 +468,7 @@ void calibrate(){
    }  
   }
   digitalWrite(LED_BUILTIN,false);
-  Serial.println("Please turn bot right to 360 deg and wait");
+  if(!rosOn) Serial.println("Please turn bot right to 360 deg and wait");
   timerOffset+=5000;
   while(millis()<startCountMillis+timerOffset){
   clearSerialBuffer();
@@ -430,7 +487,7 @@ void calibrate(){
   measurements=0;
   cumMx=0;
   cumMy=0;
-  Serial.println("Final Measurement in progress do not move bot until instructed");
+  if(!rosOn) Serial.println("Final Measurement in progress do not move bot until instructed");
   digitalWrite(LED_BUILTIN,true);
   timerOffset+=3000;
   while(millis()<startCountMillis+timerOffset){  //measure initial yaw 
@@ -454,17 +511,17 @@ void calibrate(){
   magXOffset=(calXRange[0]+calXRange[1])/2;
   magYOffset=(calYRange[0]+calYRange[1])/2;
   digitalWrite(LED_BUILTIN,false);
-  Serial.println("Calibration complete Thank You!");
-  Serial.print("recalibrated Mag offset (x,Y) Gz =");
-  Serial.print(magXOffset);
-  Serial.print(", ");
-  Serial.println(magYOffset);
-  Serial.print("recalibrated G offset (x,y,z)");
-  Serial.print(gXOffset);
-  Serial.print(", ");
-  Serial.print(gYOffset); 
-  Serial.print(", ");  
-  Serial.println(gZOffset);  
+  if(!rosOn) Serial.println("Calibration complete Thank You!");
+  if(!rosOn) Serial.print("recalibrated Mag offset (x,Y) Gz =");
+  if(!rosOn) Serial.print(magXOffset);
+  if(!rosOn) Serial.print(", ");
+  if(!rosOn) Serial.println(magYOffset);
+  if(!rosOn) Serial.print("recalibrated G offset (x,y,z)");
+  if(!rosOn) Serial.print(gXOffset);
+  if(!rosOn) Serial.print(", ");
+  if(!rosOn) Serial.print(gYOffset); 
+  if(!rosOn) Serial.print(", ");  
+  if(!rosOn) Serial.println(gZOffset);  
   //Serial.print("max X, min X, max y, min Y =");
   //Serial.print(calXRange[1]);
   //Serial.print(", ");
@@ -493,24 +550,24 @@ void calibrate(){
   String newString=Serial.readString();
   if (newString="y") {
   */
-    Serial.print("OK, save calibration_data,");
-    Serial.print(magXOffset);
-    Serial.print(",");
-    Serial.print(magYOffset);
-    Serial.print(",");
-    Serial.print(gXOffset);
-    Serial.print(",");
-    Serial.print(gYOffset);
-    Serial.print(",");
-    Serial.print(gZOffset);
-    Serial.print(",");
-    Serial.print(yawPoints[0]);
-    Serial.print(",");
-    Serial.print(yawPoints[1]);
-    Serial.print(",");
-    Serial.print(yawPoints[2]);
-    Serial.print(",");
-    Serial.println(yawPoints[3]);
+    if(!rosOn) Serial.print("OK, save calibration_data,");
+    if(!rosOn) Serial.print(magXOffset);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.print(magYOffset);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.print(gXOffset);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.print(gYOffset);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.print(gZOffset);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.print(yawPoints[0]);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.print(yawPoints[1]);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.print(yawPoints[2]);
+    if(!rosOn) Serial.print(",");
+    if(!rosOn) Serial.println(yawPoints[3]);
     
   
   
@@ -523,7 +580,8 @@ int motDeltaFromYaw(float yaw, float HeadingTarget, float yawSpeedTargetMagnitud
   float yawSPGain=.005; 
   float yawErr=HeadingTarget-yaw;
   static float yawOld=0;             //only initialize first time
-  float tachTurnSpeedMeasured=(motorSpeed[0]-motorSpeed[1])/2;
+  float motorSpeedGain=.01;
+  float tachTurnSpeedMeasured=(motorSpeed[0]-motorSpeed[1])/2*motorSpeedGain;
   float yawDelta=tachTurnSpeedMeasured;//yaw-yawOld;  
   
   yawOld=yaw;
@@ -540,13 +598,13 @@ int motDeltaFromYaw(float yaw, float HeadingTarget, float yawSpeedTargetMagnitud
   
 
   //dynamic vs Static section
-  if(abs(motorSpeed[0])>100 && abs(motorSpeed[1])>100 && (motorSpeed[1]*motorSpeed[0])>=0){  //Moving straight= low gain and no deadband
+  if(abs(motorSpeed[0]*motorSpeedGain)>100 && abs(motorSpeed[1]*motorSpeedGain)>100 && (motorSpeed[1]*motorSpeed[0])>=0){  //Moving straight= low gain and no deadband
   
     yawSpeedTargetMagnitude=yawSpeedTargetMagnitude*.2;
     yawDeadBand=.5;
   }
   else{
-    if(abs(motorSpeed[0])>100 && abs(motorSpeed[1])>100){
+    if(abs(motorSpeed[0]*motorSpeedGain)>100 && abs(motorSpeed[1]*motorSpeedGain)>100){
       yawSpeedTargetMagnitude=yawSpeedTargetMagnitude*.6;  //dynamic lower gain even if turning
     }
   }
@@ -557,8 +615,8 @@ int motDeltaFromYaw(float yaw, float HeadingTarget, float yawSpeedTargetMagnitud
   if (yawErr>=yawDeadBand) yawSpeedTarget=yawSpeedTargetMagnitude;
   float yawDeltaErr=yawSpeedTarget*50000-yawDelta;
   //if (yawDeltaErr>180) yawDeltaErr=yawDeltaErr-360;
-  //if (yawDeltaErr<-180) yawDeltaErr=yawDeltaErr+360;
   int motorDeltaOut=round(yawDeltaErr*yawSPGain);  
+  //if (yawDeltaErr<-180) yawDeltaErr=yawDeltaErr+360;
   //Serial.print("yaw rate =");
   //Serial.print(yawDelta);
   motorDeltaOut=max(motorDeltaOut,-254);
@@ -626,7 +684,7 @@ int speedControl(float targetSpeed, int tach0Input, int tach1Input)
   float integratorSum=0;  
   int lowSpeedOffset=10; //min motor dac to get reliable movment
   float calculatedSpeed=(tach0Input*motorSpeed[0]+tach1Input*motorSpeed[1])/(abs(tach0Input)+abs(tach1Input));  
-  float err=targetSpeed*13.0f-calculatedSpeed; //motorSpeed[motNo]; 
+  float err=targetSpeed*13.0f-calculatedSpeed*.01; //motorSpeed[motNo]; 
   int controlType=0; //fwd servo
   if (tach0Input+tach1Input==0) controlType=1;  //turning servo
    
@@ -651,8 +709,8 @@ int speedControl(float targetSpeed, int tach0Input, int tach1Input)
 float measureSpeed(int motNo)
 {  
   float speedOut = motorSpeed[motNo];
-  tachDelta[0]=0;
-  tachDelta[1]=0;
+  tachDelta[motNo]=0;
+  //tachDelta[1]=0;
   unsigned long currentMicros = millis();  
   static int lastEncoderCount[2] = {encoderCount[0], encoderCount[1]};
   static unsigned long whenLastEncoderChange[2] = {millis(), millis()};  
@@ -660,7 +718,7 @@ float measureSpeed(int motNo)
     
     if (encoderCount[motNo] != lastEncoderCount[motNo])
     {
-      speedOut = 10e3f * float(encoderCount[motNo] - lastEncoderCount[motNo]) / float(currentMicros - whenLastEncoderChange[motNo]);
+      speedOut = 1.0e6f * float(encoderCount[motNo] - lastEncoderCount[motNo]) / float(currentMicros - whenLastEncoderChange[motNo]);//tach/sec
       tachDelta[motNo]=encoderCount[motNo] - lastEncoderCount[motNo];
       whenLastEncoderChange[motNo] = currentMicros;
       lastEncoderCount[motNo] = encoderCount[motNo];
@@ -693,6 +751,7 @@ void loop() {
   
   static unsigned long lastClock = micros();
   static float oldYaw=0;
+  static float yawDelta=0;
   int outSpeed[2]={0,0};
   static char serialBuffer[600];
   static int bufferPos=0;
@@ -821,20 +880,20 @@ void loop() {
           manualSpeed[1]=-staticSpeed;          
           break;
         case '+': //increase speed;
-          Serial.println("current speed = ");
-          Serial.println(staticSpeed);          
+          if(!rosOn) Serial.println("current speed = ");
+          if(!rosOn) Serial.println(staticSpeed);          
           if (staticSpeed < 250) staticSpeed += 5;          
-          Serial.println("new speed = ");
-          Serial.println(staticSpeed);
+          if(!rosOn) Serial.println("new speed = ");
+          if(!rosOn) Serial.println(staticSpeed);
           manualSpeed[0]=manualSpeed[0]/abs(manualSpeed[0])*staticSpeed;
           manualSpeed[1]=manualSpeed[1]/abs(manualSpeed[1])*staticSpeed;
           break;
         case '-': //decrease speed;
-          Serial.println("current speed = ");
-          Serial.println(staticSpeed);          
+          if(!rosOn) Serial.println("current speed = ");
+          if(!rosOn) Serial.println(staticSpeed);          
           if (staticSpeed > 5) staticSpeed -= 5;          
-          Serial.println("new speed = ");
-          Serial.println(staticSpeed);
+          if(!rosOn) Serial.println("new speed = ");
+          if(!rosOn) Serial.println(staticSpeed);
           manualSpeed[0]=manualSpeed[0]/abs(manualSpeed[0])*staticSpeed;
           manualSpeed[1]=manualSpeed[1]/abs(manualSpeed[1])*staticSpeed;
           break;
@@ -862,10 +921,7 @@ void loop() {
       starboardMotor->run(RELEASE);  
     }
     
-    for (int i = 0; i < 2; i++)
-    {
-      motorSpeed[i] = measureSpeed(i); 
-    }
+    
     if (buttonXOn && buttonXWasOff){
       buttonXWasOff=false;
       keyboardHeadingTarget=headingTarget-90.0;
@@ -929,61 +985,97 @@ void loop() {
       if(outSpeed[0]==0) portMotor->run(RELEASE);
       if(outSpeed[0]<0) portMotor->run(BACKWARD);
     } 
+    if(rosOn){
+      /*
+      char hello[66]="12345678901234567890123456789012345678901234567890123456789012345";
+      str_msg.data = hello;
+      //chatter.publish( &str_msg );
+      char base_link[] = "/camera_frame";
+       char odom[] = "/odom";      
+       //tf odom->base_link;
+       t.header.frame_id = odom;
+       t.child_frame_id = base_link;
+       t.transform.translation.x = 0;     //connect motion;
+       t.transform.translation.y = 0;     //connect y motion; 
+       t.transform.translation.x = od.pose.pose.position.x;    
+       t.transform.translation.y = od.pose.pose.position.y;      
+       od.pose.pose.orientation = tf::createQuaternionFromYaw(-yaw*M_PI/180);
+       t.transform.rotation = od.pose.pose.orientation;
+       t.header.stamp = nh.now();
+       //broadcaster.sendTransform(t);
+              
+       od.header.stamp=nh.now();
+       od.header.frame_id="/odom";
+       od.child_frame_id="/camera_frame";       
+       od.pose.pose.position.z=0;       
+       //currentRosUploadTime=millis();
+       //headingDelta=-(headingCurrent-lastHeading)*(M_PI/180)/(currentRosUploadTime-oldRosUploadTime)*1000; 
+       //oldRosUploadTime=currentRosUploadTime;       
+       
+       od.twist.twist.angular.z=yawDelta*M_PI/180*loopFreq;  //rad/sec
+       Odometry.publish(&od);        
+       
+       //headingDelta_msg.data=yaw;//headingCurrent;
+       //headingDelta_pub.publish(&headingDelta_msg);
 
+      
+      nh.spinOnce();
+      */
+    }
+    if(!rosOn){ 
+    
+    // Serial.println(millis());
+    //if(!rosOn) Serial.print(" , ");
+    //if(!rosOn) Serial.print("port encoder count = ");
+    //if(!rosOn) Serial.print(encoderCount[0]);
+    //if(!rosOn) Serial.print(" , star encoder=");
+    //if(!rosOn) Serial.print(encoderCount[1]);
+    //if(!rosOn) Serial.print(" , star speed=");
+    //if(!rosOn) Serial.print(motorSpeed[1],6);
+    //*/
+    //if(!rosOn) Serial.print("Mag( x,y,z), gz = ");
+    //if(!rosOn) Serial.print(mx-magXOffset);
+    //if(!rosOn) Serial.print(" , ");
+    //if(!rosOn) Serial.println(my-magYOffset);
+    //if(!rosOn) Serial.print("button x is ");
+    //if(!rosOn) Serial.println(buttonXOn);
+    //if(!rosOn) Serial.print(" , ");
+    //if(!rosOn) Serial.println(gz);
+    //if(!rosOn) Serial.print(" , ")
+     Serial.print("yaw,yaw delta=");
+     Serial.print(yaw);
+     Serial.print(" , ");
+     Serial.println(yaw-headingTarget);    
+    //if(!rosOn) Serial.print("magYaw,");
+    //if(!rosOn) Serial.println(magYaw);
+    //if(!rosOn) Serial.print(" , ")
+    
+     Serial.print("motor delta =");
+     Serial.println(deltaMotor);
+    //if(!rosOn) Serial.print(" , ");
+    //if(!rosOn) Serial.print(manualSpeed[1]);
+    //if(!rosOn) Serial.print(" , ");
+     Serial.print("Joystic X,Y = ");
+     Serial.print(joyStickXAnalog);
+     Serial.print(" , ");
+     Serial.println(joyStickYAnalog);
+     
+     Serial.print("Measured speed=");    
+     Serial.print(motorSpeed[0]);
+     Serial.print(" , ");
+     Serial.println(motorSpeed[1]);
+     
+     Serial.print("Position x,y = ");    
+     Serial.print(position[0]);
+     Serial.print(" , ");
+     Serial.println(position[1]);
+     
+     Serial.print("outSpeed=");   
+     Serial.print(outSpeed[0]);
+     Serial.print(" , ");
+     Serial.println(outSpeed[1]);
      
     
-    Serial.println(millis());
-    //Serial.print(" , ");
-    //Serial.print("port encoder count = ");
-    //Serial.print(encoderCount[0]);
-    //Serial.print(" , star encoder=");
-    //Serial.print(encoderCount[1]);
-    //Serial.print(" , star speed=");
-    //Serial.print(motorSpeed[1],6);
-    //*/
-    Serial.print("Mag( x,y,z), gz = ");
-    //Serial.print(mx-magXOffset);
-    //Serial.print(" , ");
-    //Serial.println(my-magYOffset);
-    //Serial.print("button x is ");
-    //Serial.println(buttonXOn);
-    //Serial.print(" , ");
-    //Serial.println(gz);
-    //Serial.print(" , ")
-    Serial.print("yaw,yaw delta=");
-    Serial.print(yaw);
-    Serial.print(" , ");
-    Serial.println(yaw-headingTarget);    
-    //Serial.print("magYaw,");
-    //Serial.println(magYaw);
-    //Serial.print(" , ")
-    
-    Serial.print("motor delta =");
-    Serial.println(deltaMotor);
-    //Serial.print(" , ");
-    //Serial.print(manualSpeed[1]);
-    //Serial.print(" , ");
-    Serial.print("Joystic X,Y = ");
-    Serial.print(joyStickXAnalog);
-    Serial.print(" , ");
-    Serial.println(joyStickYAnalog);
-    Serial.print("Measured speed=");
-    //Serial.print(" , ");
-    Serial.print(motorSpeed[0]);
-    Serial.print(" , ");
-    Serial.println(motorSpeed[1]);
-    Serial.print("Position x,y = ");
-    //Serial.print(" , ");
-    Serial.print(position[0]);
-    Serial.print(" , ");
-    Serial.println(position[1]);
-    Serial.print("outSpeed=");
-    //Serial.print(" , ");
-    Serial.print(outSpeed[0]);
-    Serial.print(" , ");
-    Serial.println(outSpeed[1]);
-    Serial.println();
-    //
-    
+    }
   } 
 }

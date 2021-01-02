@@ -4,12 +4,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
-#include "ArduinoIncludes.h"
 
 namespace std_srvs
 {
 
-static const char TRIGGER[] PROGMEM = "std_srvs/Trigger";
+static const char TRIGGER[] = "std_srvs/Trigger";
 
   class TriggerRequest : public ros::Msg
   {
@@ -19,20 +18,20 @@ static const char TRIGGER[] PROGMEM = "std_srvs/Trigger";
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
      return offset;
     }
 
-    const char * getType(){ return TRIGGER; };
-    const char * getMD5(){ return PSTR( "d41d8cd98f00b204e9800998ecf8427e" ); };
+    virtual const char * getType() override { return TRIGGER; };
+    virtual const char * getMD5() override { return "d41d8cd98f00b204e9800998ecf8427e"; };
 
   };
 
@@ -50,7 +49,7 @@ static const char TRIGGER[] PROGMEM = "std_srvs/Trigger";
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       union {
@@ -68,7 +67,7 @@ static const char TRIGGER[] PROGMEM = "std_srvs/Trigger";
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       union {
@@ -91,8 +90,8 @@ static const char TRIGGER[] PROGMEM = "std_srvs/Trigger";
      return offset;
     }
 
-    const char * getType(){ return TRIGGER; };
-    const char * getMD5(){ return PSTR( "937c9679a518e3a18d831e57125ea522" ); };
+    virtual const char * getType() override { return TRIGGER; };
+    virtual const char * getMD5() override { return "937c9679a518e3a18d831e57125ea522"; };
 
   };
 

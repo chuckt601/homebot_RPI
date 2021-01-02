@@ -5,7 +5,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
-#include "ArduinoIncludes.h"
 
 namespace shape_msgs
 {
@@ -20,7 +19,7 @@ namespace shape_msgs
     {
     }
 
-    virtual int serialize(unsigned char *outbuffer) const
+    virtual int serialize(unsigned char *outbuffer) const override
     {
       int offset = 0;
       for( uint32_t i = 0; i < 4; i++){
@@ -29,7 +28,7 @@ namespace shape_msgs
       return offset;
     }
 
-    virtual int deserialize(unsigned char *inbuffer)
+    virtual int deserialize(unsigned char *inbuffer) override
     {
       int offset = 0;
       for( uint32_t i = 0; i < 4; i++){
@@ -38,8 +37,8 @@ namespace shape_msgs
      return offset;
     }
 
-    const char * getType(){ return PSTR( "shape_msgs/Plane" ); };
-    const char * getMD5(){ return PSTR( "2c1b92ed8f31492f8e73f6a4a44ca796" ); };
+    virtual const char * getType() override { return "shape_msgs/Plane"; };
+    virtual const char * getMD5() override { return "2c1b92ed8f31492f8e73f6a4a44ca796"; };
 
   };
 
