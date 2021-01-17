@@ -20,29 +20,38 @@
 #include <iostream>
 #include "homebot.h"
 
-//#include <ros.h>
-//#include <ros/time.h>
-//#include <tf/tf.h>
-//#include <tf/transform_broadcaster.h>
-//#include <nav_msgs/Odometry.h> 
-//#include <std_msgs/String.h>
-//#include <std_msgs/Float32.h>
+#include <ros.h>
+#include <ros/time.h>
+#include <tf/tf.h>
+#include <tf/transform_broadcaster.h>
+#include <nav_msgs/Odometry.h> 
+#include <std_msgs/String.h>
+#include <std_msgs/Float32.h>
+#include <geometry_msgs/Twist.h>
+#include <robot_setup_tf/homebotToPi.h>
 
 //void encoderSetup();
 int analogPin = A0; // battery voltage thru a voltage divider to ensure its below 3.3v
 unsigned long microsPerReading, microsPrevious;
 Madgwick filter;
 
-//ros::NodeHandle  nh;
+ros::NodeHandle  nh;
 //nav_msgs::Odometry od;
-//std_msgs::String str_msg;
+//geometry_msgs::TransformStamped t;
+robot_setup_tf::homebotToPi homebot_msg;
+std_msgs::String str_msg;
 //ros::Publisher chatter("chatter", &str_msg);
 //std_msgs::Float32 headingDelta_msg;
+std_msgs::Float32 inhibit_msg;
 //ros::Publisher headingDelta_pub("headingDelta", &headingDelta_msg);
 //ros::Publisher Odometry("/nav_msgs/Odometry", &od);
-//geometry_msgs::TransformStamped t;
+ros::Publisher homebot_pub("homebot_data",&homebot_msg);
 //tf::TransformBroadcaster broadcaster;
 
+void messageCb( const geometry_msgs::Twist& cmd_msg);
+ros::Subscriber<geometry_msgs::Twist> sub_vel("cmd_vel", messageCb );
+void inhibitCb( const std_msgs::Float32& inhibit_msg);
+ros::Subscriber<std_msgs::Float32> sub_inhibit("inhibit",inhibitCb );
 
 float loopFreq=1000000/loopRateMicros;  //hz
 bool motorEnable=false;
@@ -103,13 +112,15 @@ void setup() {
   if(!rosOn) Serial.setTimeout(1000);   
   if(!rosOn) Serial.println("Adafruit Motorshield v2 - DC Motor test!");
   if(rosOn){
-    /*0
     nh.initNode();
-    nh.advertise(chatter);
-    broadcaster.init(nh);    
-    nh.advertise(headingDelta_pub);    
-    */ 
-  }
+    //nh.advertise(chatter);
+    nh.subscribe(sub_vel);
+    nh.subscribe(sub_inhibit);
+    //broadcaster.init(nh);   //for TF broadcast 
+    //nh.advertise(headingDelta_pub); 
+    nh.advertise(homebot_pub);   
+  }   
+  
   encoderSetup();
   if (!IMU.begin()) {
     if(!rosOn) Serial.println("Failed to initialize IMU!");
@@ -152,17 +163,50 @@ void setup() {
   digitalWrite(LEDG,true);
   digitalWrite(LEDB,true);
 }
+//==================================================================
+void inhibitCb( const std_msgs::Float32& inhibit_msg){
+  if (inhibit_msg.data!=-1){
+      motorEnable=false;
+      portMotor->run(RELEASE);
+      starboardMotor->run(RELEASE);         
+    }
+    else    
+    {
+      motorEnable=true;
+      inhibitWatchdogTimer=millis();
+      } 
+    /*
+    if (inhibitWatchdogTimer+300<millis()){  //in case of fail to comunicate to joystick inhibit
+      motorEnable=false;
+      portMotor->run(RELEASE);
+      starboardMotor->run(RELEASE);  
+    }
+    */ 
+  }
+
+//==================================================================
+void messageCb( const geometry_msgs::Twist& cmd_msg) {
+  
+  //if ( cmd_msg.angular.z == 0 && cmd_msg.linear.x == 0 ) {
+    
+    joyStickYAnalog=cmd_msg.linear.x;
+    joyStickXAnalog=-cmd_msg.angular.z;
+    
+  
+}
 //============================================================================================
 void calcOdometry(float yaw, float oldYaw){
+  static float integratedEncoderDelta=0;
   float tachDeltaSum=(tachDelta[0]+tachDelta[1])/2;
-  yawDelta=yaw-oldYaw;
+  float tachDeltaDelta=(tachDelta[0]-tachDelta[1])/2;
+  yawDelta=yaw-oldYaw;  
   if(yawDelta>180) yawDelta-=180;
   if(yawDelta<-180) yawDelta+=180;
   float avgYaw=oldYaw+yawDelta/2;
   if(avgYaw>360) avgYaw-=360;
   if(avgYaw<0) avgYaw+=360;
   float deltaPos[2];
-  deltaPos[0]=mPerTach*tachDeltaSum*cos(avgYaw*M_PI/180);
+  deltaPos[0]=-mPerTach*tachDeltaSum*cos(avgYaw*M_PI/180);  //changes sign to make odom match map
   deltaPos[1]=mPerTach*tachDeltaSum*sin(avgYaw*M_PI/180);
   position[0]+=deltaPos[0]; // 0 is x direction based on 0 degrees is +x
   position[1]+=deltaPos[1];
@@ -170,7 +214,24 @@ void calcOdometry(float yaw, float oldYaw){
   //od.pose.pose.position.y = position[1];//sumY*metersPerTach;
   //od.twist.twist.linear.x = deltaPos[0];//(intY)*metersPerTach/(loopTimeTarget*.001);   //m/s
   //od.twist.twist.linear.y = deltaPos[1];//(intX)*metersPerTach/(loopTimeTarget*.001);   //m/s 
-  //headingDelta_msg.data=yaw*180/M_PI;
+  //headingDelta_msg.data=yaw;
+  homebot_msg.arduino_micros=micros();
+  homebot_msg.integrated_X=position[0];  //m
+  homebot_msg.integrated_Y=position[1];
+  homebot_msg.X_rate=mPerTach*(motorSpeed[0]+motorSpeed[1])/2*cos(avgYaw*M_PI/180);  //m/s
+  homebot_msg.Y_rate=mPerTach*(motorSpeed[0]+motorSpeed[1])/2*sin(avgYaw*M_PI/180);
+  homebot_msg.yaw_IMU=yaw*M_PI/180; //rad  
+  homebot_msg.yaw_rate_IMU=yawDelta*M_PI/180*1E6/loopRateMicros;    //deg/sample*rad/deg*(micros/sec)/(micros/sample)=r/s
+  homebot_msg.yaw_rate_encoders=mPerTach*(motorSpeed[0]-motorSpeed[1])/mBetweenTreads;  //M/tach * tach/s /M = rad/sec
+  integratedEncoderDelta+=tachDeltaDelta*mPerTach;  //tach*tach/M=M
+  while (integratedEncoderDelta>M_PI*mBetweenTreads){  //sort of ramainder above 2* PI * R= PI * R*2  
+    integratedEncoderDelta-=M_PI*mBetweenTreads;  
+  }
+  while (integratedEncoderDelta<0){
+    integratedEncoderDelta+=M_PI*mBetweenTreads;  
+  }
+  homebot_msg.yaw_encoders=integratedEncoderDelta/(mBetweenTreads/2);  //M/M=rad
+  homebot_pub.publish(&homebot_msg);
   if(!rosOn){
      Serial.print("odometry,");
      Serial.print(millis());     //in millis 
@@ -723,7 +784,7 @@ float measureSpeed(int motNo)
       whenLastEncoderChange[motNo] = currentMicros;
       lastEncoderCount[motNo] = encoderCount[motNo];
     }
-    else if (currentMicros  >= 300+whenLastEncoderChange[motNo]) {
+    else if (currentMicros  >= 3*loopRateMicros+whenLastEncoderChange[motNo]) {
       speedOut = 0.0f;
       whenLastEncoderChange[motNo] = currentMicros;
     }
@@ -785,6 +846,7 @@ void loop() {
       motorSpeed[i] = measureSpeed(i); 
     }
     calcOdometry(yaw, oldYaw);
+    if(!rosOn){
     while (Serial.available() > 0) 
     {          
       serialInByte=char(Serial.read());
@@ -802,6 +864,7 @@ void loop() {
         //internalString+='\0'; 
         bufferPos=0;        
       }      
+   }
    }
    
    if(internalString.length()>0 ){
@@ -904,22 +967,8 @@ void loop() {
       inString="";   
      }
      
-    if(abs(joyStickYAnalog)<.01) joyStickYAnalog=0.0;      
-    if(abs(joyStickXAnalog)<.01) joyStickXAnalog=0.0;      
-    if(abs(joyStickInhibitAnalog)<.1) {
-      motorEnable=false;
-      portMotor->run(RELEASE);
-      starboardMotor->run(RELEASE);         
-    }
-    else {
-      motorEnable=true;
-      //inhibitWatchdogTimer=millis();
-      } 
-    if (inhibitWatchdogTimer+300<millis()){  //in case of fail to comunicate to joystick inhibit
-      motorEnable=false;
-      portMotor->run(RELEASE);
-      starboardMotor->run(RELEASE);  
-    }
+    //if(abs(joyStickYAnalog)<.01) joyStickYAnalog=0.0;      
+    //if(abs(joyStickXAnalog)<.01) joyStickXAnalog=0.0;      
     
     
     if (buttonXOn && buttonXWasOff){
@@ -986,13 +1035,17 @@ void loop() {
       if(outSpeed[0]<0) portMotor->run(BACKWARD);
     } 
     if(rosOn){
-      /*
-      char hello[66]="12345678901234567890123456789012345678901234567890123456789012345";
-      str_msg.data = hello;
+      /* 
+      char hello[66];//=tempString;
+      String tempString=String(joyStickYAnalog); 
+      //tempString.toCharArray(hello,66);    
+      
+      //str_msg.data = hello;
       //chatter.publish( &str_msg );
-      char base_link[] = "/camera_frame";
-       char odom[] = "/odom";      
-       //tf odom->base_link;
+      //char base_link[] = "/camera_frame";
+      // char odom[] = "/odom";      
+       //tf.odom->base_link;
+      
        t.header.frame_id = odom;
        t.child_frame_id = base_link;
        t.transform.translation.x = 0;     //connect motion;
@@ -1002,8 +1055,8 @@ void loop() {
        od.pose.pose.orientation = tf::createQuaternionFromYaw(-yaw*M_PI/180);
        t.transform.rotation = od.pose.pose.orientation;
        t.header.stamp = nh.now();
-       //broadcaster.sendTransform(t);
-              
+       broadcaster.sendTransform(t);
+            
        od.header.stamp=nh.now();
        od.header.frame_id="/odom";
        od.child_frame_id="/camera_frame";       
@@ -1013,14 +1066,15 @@ void loop() {
        //oldRosUploadTime=currentRosUploadTime;       
        
        od.twist.twist.angular.z=yawDelta*M_PI/180*loopFreq;  //rad/sec
-       Odometry.publish(&od);        
+       //Odometry.publish(&od);        
        
        //headingDelta_msg.data=yaw;//headingCurrent;
-       //headingDelta_pub.publish(&headingDelta_msg);
-
+       headingDelta_pub.publish(&headingDelta_msg);
+       */
+       
       
       nh.spinOnce();
-      */
+      
     }
     if(!rosOn){ 
     
